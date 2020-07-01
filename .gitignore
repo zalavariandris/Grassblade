@@ -1,0 +1,4 @@
+*.MOV
+*.MP4
+_pycache_/
+.vscode/
