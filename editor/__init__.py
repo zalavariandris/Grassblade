@@ -25,6 +25,7 @@ class BezierNodeEditorItem(QGraphicsPathItem):
         super().__init__()
         self.target = None
         self.setTarget(target)
+        self._ctrlPoints = []
         pen = self.pen()
         pen.setWidth(3)
         pen.setColor(Qt.cyan)
@@ -43,7 +44,6 @@ class BezierNodeEditorItem(QGraphicsPathItem):
         path = self.pathFromPoints(target.points, target.inTangents, target.outTangents)
         self.setPath(path)
         self.target = target
-        self.ctrlPoints = []
 
     @staticmethod
     def pathFromPoints(points, inTangents, outTangents):
@@ -58,8 +58,16 @@ class BezierNodeEditorItem(QGraphicsPathItem):
         return path
 
     def handleChange(self, change):
+        # update path
         path = self.pathFromPoints(self.target.points, self.target.inTangents, self.target.outTangents)
         self.setPath(path)
+
+        # patch control points
+        print("handle change")
+        for i, ctrlPoint in enumerate(self._ctrlPoints):
+            element = self.path().elementAt(i)
+            ctrlPoint.setPos(element.x, element.y)
+            # print(i, ctrlPoint)
 
     def itemChange(self, change, value):
         if change == QGraphicsItem.ItemSelectedHasChanged:
@@ -82,10 +90,19 @@ class BezierNodeEditorItem(QGraphicsPathItem):
                     ctrlPoint = QGraphicsRectItem(-5,-5,10,10)
                     ctrlPoint.setParentItem(self)
                     ctrlPoint.setPos(element.x, element.y)
-                    self.ctrlPoints.append(ctrlPoint)
+                    ctrlPoint.installSceneEventFilter(self)
+                    
+                    self._ctrlPoints.append(ctrlPoint)
 
         return super().itemChange(change, value)
+
+    def sceneEventFilter(self, watched, event):
+        if event.type() == QEvent.GraphicsSceneMouseMove:
+            print("Move!!!!!!!!!!!!!!!")
+            watched.setPos(event.scenePos())
+        return True
             
+
 class RectNode(HasTraits):
     x = Float(25)
     y = Float(25)
