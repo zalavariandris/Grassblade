@@ -132,3 +132,82 @@ class PathEditorItem(QGraphicsPathItem):
 
     # def mouseMoveEvent(self, event):
     #     print("mouse move event")
+
+from enum import Enum
+
+class Mode(Enum):
+    Object = 0
+    Edit = 1
+
+class PathEditor(QGraphicsPathItem):
+    def __init__(self):
+        super().__init__()
+        self.createControlPoints()
+
+    def itemChange(self, change, value):
+        if change == QGraphicsItem.ItemSceneHasChanged:
+            self.onSceneHasChanged()
+
+        return super().itemChange(change, value)
+
+    def onSceneHasChanged(self):
+        if self.scene() is not None:
+            self.createControlPoints()
+        else:
+            self.destroyControlPoints()
+        
+    def createControlPoints(self):
+        elements = (self.path().elementAt(i) for i in range( self.path().elementCount() ))
+        for i, element in enumerate(elements):
+            print(element.type)
+            x,y = element.x, element.y
+            ctrlPoint = QGraphicsEllipseItem(-5,-5,10,10)
+            ctrlPoint.setPos(x,y)
+            ctrlPoint.setParentItem(self)
+            ctrlPoint.installSceneEventFilter(self)
+
+            ctrlPoint.setBrush(QColor("darkorange"))
+            ctrlPoint.setFlag(QGraphicsItem.ItemIsSelectable, True)
+            ctrlPoint.setFlag(QGraphicsItem.ItemIsMovable, True)
+            ctrlPoint.setFlag(QGraphicsItem.ItemSendsGeometryChanges , True)
+            ctrlPoint.setFlag(QGraphicsItem.ItemIgnoresTransformations, True)
+            ctrlPoint.setAcceptHoverEvents(True)
+            ctrlPoint.userData = i
+
+    def destroyControlPoints(self):
+        pass
+
+    def sceneEventFilter(self, watched, event):
+        if event.type() == QEvent.GraphicsSceneMouseMove:
+            path = self.path()
+            x, y = event.scenePos().x(), event.scenePos().y()
+            i = watched.userData
+            path.setElementPositionAt(i, x, y)
+            self.setPath(path)
+
+        return super().sceneEventFilter(watched, event)
+
+    def setMode(mode):
+        if mode is Mode.Edit:
+            print("edit")
+        if mode is Mode.Object:
+            print("object")
+
+    def mousePressEvent(self, event):
+        print("mouse press on patheditor")
+
+if __name__ == "__main__":
+    from viewer2D import Viewer2D
+    app = QApplication.instance() or QApplication()
+    viewer = Viewer2D()
+    editor = PathEditor()
+
+    path = QPainterPath()
+    path.moveTo(100,100)
+    path.cubicTo(120,10,150,10,170,100)
+    editor.setPath(path)
+    
+    viewer.scene.addItem(editor)
+    viewer.show()
+    
+    app.exec_()

@@ -58,47 +58,67 @@ class BezierNodeEditorItem(QGraphicsPathItem):
         return path
 
     def handleChange(self, change):
-        # update path
+        # update painter path
         path = self.pathFromPoints(self.target.points, self.target.inTangents, self.target.outTangents)
         self.setPath(path)
 
-        # patch control points
-        print("handle change")
+        # patch control points position
         for i, ctrlPoint in enumerate(self._ctrlPoints):
-            element = self.path().elementAt(i)
-            ctrlPoint.setPos(element.x, element.y)
-            # print(i, ctrlPoint)
+            print(ctrlPoint.userData)
+            if ctrlPoint.userData["type"] is "point":
+                i = ctrlPoint.userData["index"]
+                pos = self.target.points[i]
+                ctrlPoint.setPos(pos[0], pos[1])
+            if ctrlPoint.userData["type"] is "inTangent":
+                i = ctrlPoint.userData["index"]
+                pos = self.target.inTangents[i]
+                ctrlPoint.setPos(pos[0], pos[1])
+            if ctrlPoint.userData["type"] is "outTangent":
+                i = ctrlPoint.userData["index"]
+                pos = self.target.outTangents[i]
+                ctrlPoint.setPos(pos[0], pos[1])
+            
 
     def itemChange(self, change, value):
         if change == QGraphicsItem.ItemSelectedHasChanged:
-            if self.isSelected():
-                for i in range(self.path().elementCount()):
-                    element = self.path().elementAt(i)
-                    print("element:", end=" ")
-                    if element.isMoveTo():
-                        print("moveTo")
-                    elif element.isLineTo():
-                        print("lineTo")
-                    elif element.isCurveTo():
-                        print("curveTo")
-                    elif element.type is QPainterPath.ElementType.CurveToDataElement:
-                        print("CurveToDataElement")
-                    else:
-                        print(element.type)
 
-                    print("create ctrlPoint")
-                    ctrlPoint = QGraphicsRectItem(-5,-5,10,10)
-                    ctrlPoint.setParentItem(self)
-                    ctrlPoint.setPos(element.x, element.y)
-                    ctrlPoint.installSceneEventFilter(self)
-                    
-                    self._ctrlPoints.append(ctrlPoint)
+            # when selected, create control points
+            if self.isSelected():
+                for i, (inTangent, point, outTangent) in enumerate(zip(self.target.inTangents, self.target.points, self.target.outTangents)):
+                    pointCtrl = QGraphicsRectItem(-5, -5, 10, 10)
+                    pointCtrl.setParentItem(self)
+                    pointCtrl.userData = {"type": "point", "index": i}
+                    pointCtrl.setPos(point[0], point[1])
+                    pointCtrl.installSceneEventFilter(self)
+                    self._ctrlPoints.append(pointCtrl)
+
+                    if i>0:
+                        inTangentCtrl = QGraphicsRectItem(-3, -3, 6, 6)
+                        inTangentCtrl.setParentItem(self)
+                        inTangentCtrl.userData = {"type": "inTangent", "index": i}
+                        inTangentCtrl.setPos(inTangent[0], inTangent[1])
+                        inTangentCtrl.installSceneEventFilter(self)
+                        self._ctrlPoints.append(inTangentCtrl)
+
+                    if i<len(point)-1:
+                        outTangentCtrl = QGraphicsRectItem(-3, -3, 6, 6)
+                        outTangentCtrl.setParentItem(self)
+                        outTangentCtrl.userData = {"type": "outTangent", "index": i}
+                        outTangentCtrl.setPos(outTangent[0], outTangent[1])
+                        outTangentCtrl.installSceneEventFilter(self)
+                        self._ctrlPoints.append(outTangentCtrl)
 
         return super().itemChange(change, value)
 
     def sceneEventFilter(self, watched, event):
         if event.type() == QEvent.GraphicsSceneMouseMove:
-            print("Move!!!!!!!!!!!!!!!")
+            if watched.userData['type'] == "point":
+                i = watched.userData['index']
+                self.target.points[i] = (watched.pos().x(), watched.pos().y())
+            if watched.userData['type'] == "outTangent":
+                print("Move outTangent")
+            if watched.userData['type'] == "inTangent":
+                print("Move intangent")
             watched.setPos(event.scenePos())
         return True
             
@@ -341,6 +361,7 @@ if __name__=="__main__":
     readNode = ReadNode()
     rectNode = RectNode()
     bezierNode = BezierNode()
+    help(BezierNode.points)
     bezierNode.points = np.array([
         (1000, 0), 
         (1000, 1000)])
@@ -352,6 +373,8 @@ if __name__=="__main__":
     def animate():
         print("animate")
         bezierNode.points = np.random.uniform(0, 1000, (2,2))
+        bezierNode.inTangents = np.random.uniform(0, 1000, (2,2))
+        bezierNode.outTangents = np.random.uniform(0, 1000, (2,2))
     timer.timeout.connect(animate)
-    timer.start(1000/1)
+    # timer.start(1000/1)
     app.exec_()
